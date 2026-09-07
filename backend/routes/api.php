@@ -4,6 +4,7 @@ use App\Http\Controllers\AiProviderController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\NoteController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\NoteAiController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -26,5 +27,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get(
         '/ai/providers/{id}/models',
         [AiProviderController::class, 'models']
+    );
+
+    Route::post(
+        '/notes/{id}/summary',
+        [NoteAiController::class, 'summary']
     );
 });

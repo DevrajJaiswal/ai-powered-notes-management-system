@@ -64,7 +64,8 @@ class OpenAiProvider implements AiProviderInterface
 
         if (!$response->successful()) {
             throw new RuntimeException(
-                'OpenAI text generation failed.'
+                'OpenAI text generation failed with HTTP status ' .
+                $response->status() . '.'
             );
         }
 
