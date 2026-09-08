@@ -27,14 +27,13 @@ class NoteAiController extends Controller
 
         $providerKey = $request->user()
             ->aiProviderKeys()
+            ->where('is_active', true)
             ->first();
 
         if (!$providerKey) {
-            throw ValidationException::withMessages([
-                'provider' => [
-                    'No AI provider is configured. Please configure an AI provider first.',
-                ],
-            ]);
+            return response()->json([
+                'message' => 'No active AI provider configured.',
+            ], 422);
         }
 
         try {
