@@ -12,6 +12,7 @@ class AiProviderKey extends Model
         'provider',
         'model',
         'api_key',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -22,6 +23,7 @@ class AiProviderKey extends Model
     {
         return [
             'api_key' => 'encrypted',
+            'is_active' => 'boolean',
         ];
     }
 

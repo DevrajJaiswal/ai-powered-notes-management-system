@@ -22,6 +22,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ai/providers', [AiProviderController::class, 'store']);
     Route::put('/ai/providers/{id}', [AiProviderController::class, 'update']);
     Route::delete('/ai/providers/{id}', [AiProviderController::class, 'destroy']);
+    Route::patch(
+        '/ai/providers/{id}/activate',
+        [AiProviderController::class, 'activate']
+    );
 
     // Available models for a provider
     Route::get(

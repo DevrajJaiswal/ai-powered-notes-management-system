@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class AiProviderController extends Controller
@@ -111,9 +112,16 @@ class AiProviderController extends Controller
             ]);
         }
 
+        $isFirstProvider = ! $request->user()
+            ->aiProviderKeys()
+            ->exists();
+
         $providerKey = $request->user()
             ->aiProviderKeys()
-            ->create($validated);
+            ->create([
+                ...$validated,
+                'is_active' => $isFirstProvider,
+            ]);
 
         return response()->json([
             'message' => 'AI provider configuration created successfully.',
@@ -134,6 +142,7 @@ class AiProviderController extends Controller
                 'id',
                 'provider',
                 'model',
+                'is_active',
                 'created_at',
                 'updated_at',
             ]);
@@ -231,6 +240,30 @@ class AiProviderController extends Controller
 
         return response()->json([
             'message' => 'AI provider configuration deleted successfully.',
+        ]);
+    }
+
+    public function activate(Request $request, int $id): JsonResponse
+    {
+        $providerKey = $request->user()
+            ->aiProviderKeys()
+            ->findOrFail($id);
+
+        DB::transaction(function () use ($request, $providerKey) {
+            $request->user()
+                ->aiProviderKeys()
+                ->update(['is_active' => false]);
+
+            $providerKey->update([
+                'is_active' => true,
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'AI provider activated successfully.',
+            'provider' => $providerKey->provider,
+            'model' => $providerKey->model,
+            'is_active' => true,
         ]);
     }
 }
