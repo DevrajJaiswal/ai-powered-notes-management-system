@@ -28,3 +28,8 @@ export const deleteNote = async (id) => {
 
     return response.data;
 };
+
+export const generateSummary = async (id) => {
+    const response = await api.post(`/notes/${id}/summary`);
+    return response.data;
+};

@@ -4,6 +4,7 @@ import NoteForm from '../components/NoteForm';
 import {
     createNote,
     deleteNote,
+    generateSummary,
     getNotes,
     updateNote,
 } from '../services/noteService';
@@ -97,6 +98,10 @@ const Notes = () => {
         }
     };
 
+    const handleGenerateSummary = async (id) => {
+        return await generateSummary(id);
+    };
+    
     const handlePageChange = (newPage) => {
         loadNotes(newPage);
     };
@@ -153,6 +158,7 @@ const Notes = () => {
                             note={note}
                             onEdit={setEditingNote}
                             onDelete={handleDelete}
+                            onGenerateSummary={handleGenerateSummary}
                         />
                     ))
                 )}
