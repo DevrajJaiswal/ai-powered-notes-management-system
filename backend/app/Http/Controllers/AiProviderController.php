@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AiProviderKey;
 use App\Services\AI\AiProviderManager;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
@@ -10,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use App\Services\AI\AiModelCatalog;
 use Throwable;
 
 class AiProviderController extends Controller
@@ -17,39 +17,6 @@ class AiProviderController extends Controller
     public function __construct(
         private readonly AiProviderManager $providerManager
     ) {
-    }
-
-/**
- * Get models available for an AI provider using the supplied API key.
- */
-    public function models(Request $request, int $id): JsonResponse
-    {
-        $providerKey = $request->user()
-            ->aiProviderKeys()
-            ->findOrFail($id);
-
-        try {
-            $provider = $this->providerManager
-                ->driver($providerKey->provider);
-
-            return response()->json([
-                'provider' => $providerKey->provider,
-                'model' => $providerKey->model,
-                'models' => $provider->getModels($providerKey->api_key),
-            ]);
-        } catch (ConnectionException) {
-            throw ValidationException::withMessages([
-                'provider' => [
-                    'Unable to connect to the AI provider.',
-                ],
-            ]);
-        } catch (Throwable $exception) {
-            throw ValidationException::withMessages([
-                'provider' => [
-                    'Unable to retrieve models from the AI provider.',
-                ],
-            ]);
-        }
     }
 
     /**
@@ -63,9 +30,28 @@ class AiProviderController extends Controller
                 'string',
                 Rule::in(['openai', 'gemini', 'groq']),
             ],
-            'model' => ['required', 'string', 'max:100'],
-            'api_key' => ['required', 'string', 'min:10'],
+            'model' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+            'api_key' => [
+                'required',
+                'string',
+                'min:10',
+            ],
         ]);
+
+        if (!AiModelCatalog::contains(
+            $validated['provider'],
+            $validated['model']
+        )) {
+            throw ValidationException::withMessages([
+                'model' => [
+                    'The selected model is not supported.',
+                ],
+            ]);
+        }
 
         $exists = $request->user()
             ->aiProviderKeys()
@@ -167,9 +153,28 @@ class AiProviderController extends Controller
                 'string',
                 Rule::in(['openai', 'gemini', 'groq']),
             ],
-            'model' => ['required', 'string', 'max:100'],
-            'api_key' => ['required', 'string', 'min:10'],
+            'model' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+            'api_key' => [
+                'required',
+                'string',
+                'min:10',
+            ],
         ]);
+
+        if (!AiModelCatalog::contains(
+            $validated['provider'],
+            $validated['model']
+        )) {
+            throw ValidationException::withMessages([
+                'model' => [
+                    'The selected model is not supported.',
+                ],
+            ]);
+        }
 
         $duplicate = $request->user()
             ->aiProviderKeys()

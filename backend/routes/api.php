@@ -27,12 +27,6 @@ Route::middleware('auth:sanctum')->group(function () {
         [AiProviderController::class, 'activate']
     );
 
-    // Available models for a provider
-    Route::get(
-        '/ai/providers/{id}/models',
-        [AiProviderController::class, 'models']
-    );
-
     Route::post(
         '/notes/{id}/summary',
         [NoteAiController::class, 'summary']

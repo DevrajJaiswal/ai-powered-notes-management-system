@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Notes from './pages/Notes';
 import { useAuth } from './context/AuthContext';
+import Settings from './pages/Settings';
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -37,6 +38,14 @@ function App() {
             <Route
                 path="*"
                 element={<Navigate to="/notes" replace />}
+            />
+            <Route
+                path="/settings"
+                element={
+                    <ProtectedRoute>
+                        <Settings />
+                    </ProtectedRoute>
+                }
             />
         </Routes>
     );
