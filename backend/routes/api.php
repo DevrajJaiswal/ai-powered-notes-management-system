@@ -6,8 +6,15 @@ use App\Http\Controllers\NoteController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NoteAiController;
 
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post(
+    '/register',
+    [AuthController::class, 'register']
+)->middleware('throttle:auth');
+
+Route::post(
+    '/login',
+    [AuthController::class, 'login']
+)->middleware('throttle:auth');
 
 Route::middleware('auth:sanctum')->group(function () {
     // Authentication
@@ -19,8 +26,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // AI Provider Configurations
     Route::get('/ai/providers', [AiProviderController::class, 'index']);
-    Route::post('/ai/providers', [AiProviderController::class, 'store']);
-    Route::put('/ai/providers/{id}', [AiProviderController::class, 'update']);
+    Route::post(
+        '/ai/providers',
+        [AiProviderController::class, 'store']
+    )->middleware('throttle:ai');
+
+    Route::put(
+        '/ai/providers/{id}',
+        [AiProviderController::class, 'update']
+    )->middleware('throttle:ai');
     Route::delete('/ai/providers/{id}', [AiProviderController::class, 'destroy']);
     Route::patch(
         '/ai/providers/{id}/activate',
@@ -30,5 +44,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post(
         '/notes/{id}/summary',
         [NoteAiController::class, 'summary']
-    );
+    )->middleware('throttle:ai');
+
 });
