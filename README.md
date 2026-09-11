@@ -35,6 +35,36 @@ Users can create and manage notes, configure an AI provider, and generate summar
 - Axios
 - Tailwind CSS
 
+## Screenshots
+
+### Register User
+
+![Login](screenshots/register.png)
+
+### Login User
+
+![Login](screenshots/login.png)
+
+### Create Note
+
+![Login](screenshots/create-note.png)
+
+### Notes Listing
+
+![Notes](screenshots/notes-listing-page.png)
+
+### Add AI Provider
+
+![Login](screenshots/add-ai-provider-modal.png)
+
+### AI Provider Configuration
+
+![AI Providers](screenshots/ai-provider-listing-page.png)
+
+### AI-Generated Summary
+
+![AI Summary](screenshots/ai-generated-summary-note.png)
+
 ### AI Providers
 
 - OpenAI
