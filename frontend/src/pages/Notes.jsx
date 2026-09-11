@@ -11,11 +11,7 @@ import {
     updateNote,
 } from '../services/noteService';
 
-import { useAuth } from '../context/AuthContext';
-
 const Notes = () => {
-    const { user } = useAuth();
-
     const [notes, setNotes] = useState([]);
     const [editingNote, setEditingNote] = useState(null);
 
@@ -40,7 +36,7 @@ const Notes = () => {
         } catch (error) {
             setError(
                 error.response?.data?.message ||
-                    'Unable to load your notes.'
+                    'Unable to load notes.'
             );
         } finally {
             setLoading(false);
@@ -73,8 +69,8 @@ const Notes = () => {
         try {
             await updateNote(editingNote.id, data);
 
-            setEditingNote(null);
             setShowForm(false);
+            setEditingNote(null);
 
             await loadNotes(page);
         } catch (error) {
@@ -99,10 +95,6 @@ const Notes = () => {
         try {
             await deleteNote(id);
 
-            /*
-             * If the last note on the current page was deleted,
-             * move back one page when necessary.
-             */
             const nextPage =
                 notes.length === 1 && page > 1
                     ? page - 1
@@ -143,90 +135,67 @@ const Notes = () => {
     };
 
     const handleGenerateSummary = async (id) => {
-        return await generateSummary(id);
+        return generateSummary(id);
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             {/* Page header */}
-            <section>
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                            <span className="size-1.5 rounded-full bg-emerald-500" />
-                            Personal workspace
-                        </div>
+            <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-5">
+                <div>
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+                        Notes
+                    </h1>
 
-                        <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-                            Good to see you,{' '}
-                            {user?.name?.split(' ')[0] || 'there'}.
-                        </h1>
+                    <p className="mt-1 text-sm text-slate-500">
+                        Create and manage your notes.
+                    </p>
+                </div>
 
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-                            Capture your thoughts, manage your notes, and
-                            use AI to turn them into concise summaries.
-                        </p>
-                    </div>
-
+                {!showForm && (
                     <button
                         type="button"
                         onClick={handleNewNote}
-                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-md"
+                        className="shrink-0 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
                     >
-                        <span className="text-lg leading-none">+</span>
-                        New note
+                        + New note
                     </button>
-                </div>
-            </section>
+                )}
+            </div>
 
             {/* Error */}
             {error && (
-                <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
-                    <span className="mt-0.5 font-bold">!</span>
-
-                    <div className="flex-1">
-                        <p className="font-semibold">
-                            Something went wrong
-                        </p>
-
-                        <p className="mt-1 text-red-600">
-                            {error}
-                        </p>
-                    </div>
+                <div className="flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                    <p className="text-sm text-red-700">
+                        {error}
+                    </p>
 
                     <button
                         type="button"
                         onClick={() => setError('')}
-                        className="text-red-400 transition hover:text-red-700"
+                        className="text-sm font-medium text-red-500 hover:text-red-700"
                     >
-                        ×
+                        Dismiss
                     </button>
                 </div>
             )}
 
-            {/* Create / edit form */}
+            {/* Note form */}
             {showForm && (
-                <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-                    <div className="mb-6 flex items-start justify-between gap-4">
-                        <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400">
-                                {editingNote ? 'Edit note' : 'Create note'}
-                            </p>
-
-                            <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">
-                                {editingNote
-                                    ? 'Update your note'
-                                    : 'Capture a new thought'}
-                            </h2>
-                        </div>
+                <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
+                        <h2 className="text-base font-semibold text-slate-900">
+                            {editingNote
+                                ? 'Edit note'
+                                : 'New note'}
+                        </h2>
 
                         <button
                             type="button"
                             onClick={handleCancel}
-                            className="grid size-9 shrink-0 place-items-center rounded-xl text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                            aria-label="Close form"
+                            className="text-sm font-medium text-slate-500 hover:text-slate-900"
                         >
-                            ×
+                            Cancel
                         </button>
                     </div>
 
@@ -242,43 +211,14 @@ const Notes = () => {
                 </section>
             )}
 
-            {/* Notes section */}
+            {/* Notes */}
             <section>
-                <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 className="text-xl font-bold tracking-tight text-slate-950">
-                            Your notes
-                        </h2>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                            {loading
-                                ? 'Loading your notes...'
-                                : notes.length === 0
-                                  ? 'Your workspace is ready for your first note.'
-                                  : `${notes.length} note${
-                                        notes.length === 1 ? '' : 's'
-                                    } on this page`}
-                        </p>
-                    </div>
-
-                    {!showForm && (
-                        <button
-                            type="button"
-                            onClick={handleNewNote}
-                            className="self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                        >
-                            + Add note
-                        </button>
-                    )}
-                </div>
-
-                {/* Loading state */}
                 {loading && (
-                    <div className="grid gap-5 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-2">
                         {[1, 2, 3, 4].map((item) => (
                             <div
                                 key={item}
-                                className="min-h-64 animate-pulse rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+                                className="h-56 animate-pulse rounded-xl border border-slate-200 bg-white p-5"
                             >
                                 <div className="h-5 w-2/3 rounded bg-slate-100" />
 
@@ -286,48 +226,34 @@ const Notes = () => {
                                     <div className="h-3 w-full rounded bg-slate-100" />
                                     <div className="h-3 w-11/12 rounded bg-slate-100" />
                                     <div className="h-3 w-4/5 rounded bg-slate-100" />
-                                    <div className="h-3 w-2/3 rounded bg-slate-100" />
-                                </div>
-
-                                <div className="mt-10 flex gap-2">
-                                    <div className="h-9 w-16 rounded-lg bg-slate-100" />
-                                    <div className="h-9 w-20 rounded-lg bg-slate-100" />
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
 
-                {/* Empty state */}
                 {!loading && notes.length === 0 && (
-                    <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
-                        <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-slate-100 text-2xl">
-                            📝
-                        </div>
-
-                        <h3 className="mt-5 text-lg font-bold text-slate-950">
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+                        <h2 className="text-base font-semibold text-slate-900">
                             No notes yet
-                        </h3>
+                        </h2>
 
-                        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                            Start building your personal knowledge
-                            workspace. Create your first note and let AI
-                            help you summarize it.
+                        <p className="mt-1 text-sm text-slate-500">
+                            Create your first note to get started.
                         </p>
 
                         <button
                             type="button"
                             onClick={handleNewNote}
-                            className="mt-6 rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                            className="mt-5 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
                         >
-                            Create your first note
+                            Create note
                         </button>
                     </div>
                 )}
 
-                {/* Notes grid */}
                 {!loading && notes.length > 0 && (
-                    <div className="grid gap-5 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-2">
                         {notes.map((note) => (
                             <NoteCard
                                 key={note.id}
@@ -345,16 +271,9 @@ const Notes = () => {
 
             {/* Pagination */}
             {!loading && lastPage > 1 && (
-                <div className="flex flex-col gap-4 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center justify-between border-t border-slate-200 pt-5">
                     <p className="text-sm text-slate-500">
-                        Page{' '}
-                        <span className="font-semibold text-slate-900">
-                            {page}
-                        </span>{' '}
-                        of{' '}
-                        <span className="font-semibold text-slate-900">
-                            {lastPage}
-                        </span>
+                        Page {page} of {lastPage}
                     </p>
 
                     <div className="flex items-center gap-2">
@@ -362,18 +281,18 @@ const Notes = () => {
                             type="button"
                             disabled={page === 1}
                             onClick={() => loadNotes(page - 1)}
-                            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40"
+                            className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                            ← Previous
+                            Previous
                         </button>
 
                         <button
                             type="button"
                             disabled={page === lastPage}
                             onClick={() => loadNotes(page + 1)}
-                            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-40"
+                            className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                            Next →
+                            Next
                         </button>
                     </div>
                 </div>

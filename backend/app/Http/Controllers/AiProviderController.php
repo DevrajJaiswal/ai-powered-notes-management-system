@@ -148,26 +148,40 @@ class AiProviderController extends Controller
             ->findOrFail($id);
 
         $validated = $request->validate([
-            'provider' => [
-                'required',
-                'string',
-                Rule::in(['openai', 'gemini', 'groq']),
-            ],
             'model' => [
+                'sometimes',
                 'required',
                 'string',
                 'max:100',
             ],
             'api_key' => [
+                'sometimes',
                 'required',
                 'string',
                 'min:10',
             ],
         ]);
 
+        if (empty($validated)) {
+            throw ValidationException::withMessages([
+                'provider' => [
+                    'At least one field must be provided for update.',
+                ],
+            ]);
+        }
+
+        $provider = $this->providerManager
+            ->driver($providerKey->provider);
+
+        $apiKey = $validated['api_key']
+            ?? $providerKey->api_key;
+
+        $model = $validated['model']
+            ?? $providerKey->model;
+
         if (!AiModelCatalog::contains(
-            $validated['provider'],
-            $validated['model']
+            $providerKey->provider,
+            $model
         )) {
             throw ValidationException::withMessages([
                 'model' => [
@@ -176,27 +190,10 @@ class AiProviderController extends Controller
             ]);
         }
 
-        $duplicate = $request->user()
-            ->aiProviderKeys()
-            ->where('provider', $validated['provider'])
-            ->where('id', '!=', $providerKey->id)
-            ->exists();
-
-        if ($duplicate) {
-            throw ValidationException::withMessages([
-                'provider' => [
-                    'This provider is already configured.',
-                ],
-            ]);
-        }
-
         try {
-            $provider = $this->providerManager
-                ->driver($validated['provider']);
-
             $isValid = $provider->validateCredentials(
-                $validated['api_key'],
-                $validated['model']
+                $apiKey,
+                $model
             );
 
             if (!$isValid) {
@@ -222,7 +219,15 @@ class AiProviderController extends Controller
             ]);
         }
 
-        $providerKey->update($validated);
+        $updateData = [
+            'model' => $model,
+        ];
+
+        if (array_key_exists('api_key', $validated)) {
+            $updateData['api_key'] = $apiKey;
+        }
+
+        $providerKey->update($updateData);
 
         return response()->json([
             'message' => 'AI provider configuration updated successfully.',

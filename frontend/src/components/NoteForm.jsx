@@ -1,38 +1,36 @@
 import { useEffect, useState } from 'react';
 
+import { validateNote } from '../utils/validation';
+
 const NoteForm = ({ note, onSubmit, onCancel }) => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [errors, setErrors] = useState({});
+    const [serverError, setServerError] = useState('');
 
     const isEditing = Boolean(note);
 
     useEffect(() => {
-        if (note) {
-            setTitle(note.title || '');
-            setContent(note.content || '');
-        } else {
-            setTitle('');
-            setContent('');
-        }
-
-        setError('');
+        setTitle(note?.title || '');
+        setContent(note?.content || '');
+        setErrors({});
+        setServerError('');
     }, [note]);
 
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        setError('');
+        setErrors({});
+        setServerError('');
 
-        if (!title.trim()) {
-            setError('Please enter a title.');
-            return;
-        }
+        const validationErrors = validateNote({
+            title,
+            content,
+        });
 
-        if (!content.trim()) {
-            setError('Please enter some content.');
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
             return;
         }
 
@@ -44,9 +42,18 @@ const NoteForm = ({ note, onSubmit, onCancel }) => {
                 content: content.trim(),
             });
         } catch (error) {
-            setError(
-                error.response?.data?.message ||
-                    'Unable to save the note.'
+            const validationErrors =
+                error.response?.data?.errors;
+
+            const firstValidationError =
+                validationErrors
+                    ? Object.values(validationErrors).flat()[0]
+                    : null;
+
+            setServerError(
+                firstValidationError ||
+                    error.response?.data?.message ||
+                    'Unable to save note.'
             );
         } finally {
             setLoading(false);
@@ -55,12 +62,11 @@ const NoteForm = ({ note, onSubmit, onCancel }) => {
 
     return (
         <form onSubmit={handleSubmit}>
-            <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
-                {/* Title */}
+            <div className="space-y-5">
                 <div>
                     <label
                         htmlFor="note-title"
-                        className="mb-2 block text-sm font-semibold text-slate-800"
+                        className="mb-2 block text-sm font-medium text-slate-700"
                     >
                         Title
                     </label>
@@ -69,31 +75,39 @@ const NoteForm = ({ note, onSubmit, onCancel }) => {
                         id="note-title"
                         type="text"
                         value={title}
-                        onChange={(event) =>
-                            setTitle(event.target.value)
-                        }
-                        placeholder="e.g. Project ideas"
+                        onChange={(event) => {
+                            setTitle(event.target.value);
+
+                            if (errors.title) {
+                                setErrors((current) => ({
+                                    ...current,
+                                    title: '',
+                                }));
+                            }
+                        }}
+                        placeholder="Note title"
                         maxLength={255}
                         disabled={loading}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className={[
+                            'w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition',
+                            'focus:ring-2 focus:ring-slate-100 disabled:bg-slate-50',
+                            errors.title
+                                ? 'border-red-300 focus:border-red-400'
+                                : 'border-slate-300 focus:border-slate-500',
+                        ].join(' ')}
                     />
 
-                    <div className="mt-2 flex justify-between">
-                        <p className="text-xs text-slate-400">
-                            Give your note a short, meaningful title.
+                    {errors.title && (
+                        <p className="mt-1.5 text-xs text-red-600">
+                            {errors.title}
                         </p>
-
-                        <span className="text-xs text-slate-400">
-                            {title.length}/255
-                        </span>
-                    </div>
+                    )}
                 </div>
 
-                {/* Content */}
                 <div>
                     <label
                         htmlFor="note-content"
-                        className="mb-2 block text-sm font-semibold text-slate-800"
+                        className="mb-2 block text-sm font-medium text-slate-700"
                     >
                         Content
                     </label>
@@ -101,70 +115,65 @@ const NoteForm = ({ note, onSubmit, onCancel }) => {
                     <textarea
                         id="note-content"
                         value={content}
-                        onChange={(event) =>
-                            setContent(event.target.value)
-                        }
-                        placeholder="Write your thoughts, ideas, meeting notes, reminders..."
-                        rows={7}
+                        onChange={(event) => {
+                            setContent(event.target.value);
+
+                            if (errors.content) {
+                                setErrors((current) => ({
+                                    ...current,
+                                    content: '',
+                                }));
+                            }
+                        }}
+                        placeholder="Write your note..."
+                        rows={8}
                         disabled={loading}
-                        className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className={[
+                            'w-full resize-y rounded-lg border bg-white px-3.5 py-2.5 text-sm leading-6 text-slate-900 outline-none transition',
+                            'focus:ring-2 focus:ring-slate-100 disabled:bg-slate-50',
+                            errors.content
+                                ? 'border-red-300 focus:border-red-400'
+                                : 'border-slate-300 focus:border-slate-500',
+                        ].join(' ')}
                     />
 
-                    <p className="mt-2 text-xs text-slate-400">
-                        Your content can later be summarized using your
-                        configured AI provider.
-                    </p>
-                </div>
-            </div>
-
-            {/* Error */}
-            {error && (
-                <div className="mt-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-                    <span className="mt-0.5 font-bold text-red-500">
-                        !
-                    </span>
-
-                    <p className="text-sm font-medium leading-5 text-red-700">
-                        {error}
-                    </p>
-                </div>
-            )}
-
-            {/* Actions */}
-            <div className="mt-7 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    disabled={loading}
-                    className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {loading ? (
-                        <>
-                            <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                            {isEditing
-                                ? 'Updating...'
-                                : 'Creating...'}
-                        </>
-                    ) : (
-                        <>
-                            <span>
-                                {isEditing ? '✓' : '+'}
-                            </span>
-
-                            {isEditing
-                                ? 'Update note'
-                                : 'Create note'}
-                        </>
+                    {errors.content && (
+                        <p className="mt-1.5 text-xs text-red-600">
+                            {errors.content}
+                        </p>
                     )}
-                </button>
+                </div>
+
+                {serverError && (
+                    <p className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                        {serverError}
+                    </p>
+                )}
+
+                <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={loading}
+                        className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {loading
+                            ? isEditing
+                                ? 'Updating...'
+                                : 'Creating...'
+                            : isEditing
+                              ? 'Update note'
+                              : 'Create note'}
+                    </button>
+                </div>
             </div>
         </form>
     );
