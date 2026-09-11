@@ -1,4 +1,9 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useState,
+} from 'react';
 
 import {
     getCurrentUser,
@@ -16,6 +21,25 @@ export const AuthProvider = ({ children }) => {
     const isAuthenticated = Boolean(user);
 
     useEffect(() => {
+        const handleUnauthorized = () => {
+            localStorage.removeItem('auth_token');
+            setUser(null);
+        };
+
+        window.addEventListener(
+            'auth:unauthorized',
+            handleUnauthorized
+        );
+
+        return () => {
+            window.removeEventListener(
+                'auth:unauthorized',
+                handleUnauthorized
+            );
+        };
+    }, []);
+
+    useEffect(() => {
         const token = localStorage.getItem('auth_token');
 
         if (!token) {
@@ -29,7 +53,10 @@ export const AuthProvider = ({ children }) => {
 
                 setUser(data.user);
             } catch (error) {
-                console.error('Unable to restore session:', error);
+                console.error(
+                    'Unable to restore session:',
+                    error
+                );
 
                 localStorage.removeItem('auth_token');
                 setUser(null);
@@ -44,7 +71,11 @@ export const AuthProvider = ({ children }) => {
     const login = async (credentials) => {
         const data = await loginRequest(credentials);
 
-        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem(
+            'auth_token',
+            data.token
+        );
+
         setUser(data.user);
 
         return data;
@@ -53,7 +84,11 @@ export const AuthProvider = ({ children }) => {
     const register = async (credentials) => {
         const data = await registerRequest(credentials);
 
-        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem(
+            'auth_token',
+            data.token
+        );
+
         setUser(data.user);
 
         return data;
@@ -63,7 +98,10 @@ export const AuthProvider = ({ children }) => {
         try {
             await logoutRequest();
         } catch (error) {
-            console.error('Logout request failed:', error);
+            console.error(
+                'Logout request failed:',
+                error
+            );
         } finally {
             localStorage.removeItem('auth_token');
             setUser(null);
