@@ -345,4 +345,21 @@ class AiProviderTest extends TestCase
             'id' => $provider->id,
         ]);
     }
+
+    public function test_ai_provider_requests_are_rate_limited(): void
+    {
+        $user = User::factory()->create();
+
+        for ($i = 0; $i < 10; $i++) {
+            $this
+                ->actingAs($user, 'sanctum')
+                ->getJson('/api/ai/providers');
+        }
+
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson('/api/ai/providers');
+
+        $response->assertStatus(429);
+    }
 }

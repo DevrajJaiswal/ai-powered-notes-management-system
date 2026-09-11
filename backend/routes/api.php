@@ -25,21 +25,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('notes', NoteController::class);
 
     // AI Provider Configurations
-    Route::get('/ai/providers', [AiProviderController::class, 'index']);
-    Route::post(
-        '/ai/providers',
-        [AiProviderController::class, 'store']
-    )->middleware('throttle:ai');
+    Route::get('/ai/providers', [AiProviderController::class, 'index'])
+        ->middleware('throttle:ai');
 
-    Route::put(
-        '/ai/providers/{id}',
-        [AiProviderController::class, 'update']
-    )->middleware('throttle:ai');
-    Route::delete('/ai/providers/{id}', [AiProviderController::class, 'destroy']);
-    Route::patch(
-        '/ai/providers/{id}/activate',
-        [AiProviderController::class, 'activate']
-    );
+    Route::post('/ai/providers', [AiProviderController::class, 'store'])
+        ->middleware('throttle:ai');
+
+    Route::put('/ai/providers/{id}', [AiProviderController::class, 'update'])
+        ->middleware('throttle:ai');
+
+    Route::delete('/ai/providers/{id}', [AiProviderController::class, 'destroy'])
+        ->middleware('throttle:ai');
+
+    Route::patch('/ai/providers/{id}/activate', [AiProviderController::class, 'activate'])
+        ->middleware('throttle:ai');
 
     Route::post(
         '/notes/{id}/summary',
