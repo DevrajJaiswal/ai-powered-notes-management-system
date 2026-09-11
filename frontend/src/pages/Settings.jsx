@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+
 import ProviderCard from '../components/ProviderCard';
+
 import {
     activateProvider,
     createProvider,
@@ -76,29 +78,45 @@ const PROVIDER_MODELS = {
             name: 'Llama 3.3 70B Versatile',
             description: 'Higher-capability model for general-purpose tasks.',
         },
-        {
-            id: 'groq/compound',
-            name: 'Groq Compound',
-            description: 'AI system combining models with built-in tools.',
-        },
     ],
+};
+
+const PROVIDERS = [
+    {
+        id: 'openai',
+        name: 'OpenAI',
+        description: 'Powerful models for intelligent note processing.',
+    },
+    {
+        id: 'gemini',
+        name: 'Google Gemini',
+        description: 'Fast and capable models from Google AI.',
+    },
+    {
+        id: 'groq',
+        name: 'Groq',
+        description: 'High-speed inference for responsive AI workflows.',
+    },
+];
+
+const emptyForm = {
+    provider: 'openai',
+    model: PROVIDER_MODELS.openai[0].id,
+    api_key: '',
 };
 
 const Settings = () => {
     const [providers, setProviders] = useState([]);
-    const [editingProvider, setEditingProvider] = useState(null);
 
-    const [form, setForm] = useState({
-        provider: 'openai',
-        model: '',
-        api_key: '',
-    });
+    const [form, setForm] = useState(emptyForm);
+    const [editingProvider, setEditingProvider] = useState(null);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [activatingId, setActivatingId] = useState(null);
 
     const [error, setError] = useState('');
-    const [message, setMessage] = useState('');
+    const [success, setSuccess] = useState('');
 
     const loadProviders = async () => {
         setLoading(true);
@@ -107,11 +125,11 @@ const Settings = () => {
         try {
             const data = await getProviders();
 
-            setProviders(data.providers || []);
+            setProviders(data.data || data);
         } catch (error) {
             setError(
                 error.response?.data?.message ||
-                'Unable to load AI providers.'
+                    'Unable to load AI providers.'
             );
         } finally {
             setLoading(false);
@@ -122,84 +140,79 @@ const Settings = () => {
         loadProviders();
     }, []);
 
-    const handleChange = (event) => {
-        const { name, value } = event.target;
-
-        setForm((previousForm) => {
-            if (name === 'provider') {
-                return {
-                    ...previousForm,
-                    provider: value,
-                    model: '',
-                };
-            }
-
-            return {
-                ...previousForm,
-                [name]: value,
-            };
-        });
-
-        setError('');
-        setMessage('');
+    const resetForm = () => {
+        setForm(emptyForm);
+        setEditingProvider(null);
     };
 
-    const resetForm = () => {
+    const handleProviderChange = (event) => {
+        const provider = event.target.value;
+
         setForm({
-            provider: 'openai',
-            model: '',
+            provider,
+            model: PROVIDER_MODELS[provider][0].id,
             api_key: '',
         });
+    };
 
-        setEditingProvider(null);
-        setError('');
-        setMessage('');
+    const handleModelChange = (event) => {
+        setForm((current) => ({
+            ...current,
+            model: event.target.value,
+        }));
+    };
+
+    const handleApiKeyChange = (event) => {
+        setForm((current) => ({
+            ...current,
+            api_key: event.target.value,
+        }));
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        setSaving(true);
         setError('');
-        setMessage('');
+        setSuccess('');
+
+        if (!form.api_key.trim() && !editingProvider) {
+            setError('Please enter your API key.');
+            return;
+        }
+
+        setSaving(true);
 
         try {
             if (editingProvider) {
-                await updateProvider(
-                    editingProvider.id,
-                    form
-                );
+                const payload = {
+                    provider: form.provider,
+                    model: form.model,
+                };
 
-                setMessage(
-                    'AI provider updated successfully.'
-                );
+                if (form.api_key.trim()) {
+                    payload.api_key = form.api_key.trim();
+                }
+
+                await updateProvider(editingProvider.id, payload);
+
+                setSuccess('AI provider updated successfully.');
             } else {
-                await createProvider(form);
+                await createProvider({
+                    provider: form.provider,
+                    model: form.model,
+                    api_key: form.api_key.trim(),
+                });
 
-                setMessage(
-                    'AI provider configured successfully.'
-                );
+                setSuccess('AI provider added successfully.');
             }
 
             resetForm();
-
             await loadProviders();
         } catch (error) {
-            const validationErrors =
-                error.response?.data?.errors;
-
-            if (validationErrors) {
-                setError(
-                    Object.values(validationErrors)
-                        .flat()
-                        .join(' ')
-                );
-            } else {
-                setError(
-                    error.response?.data?.message ||
+            setError(
+                error.response?.data?.message ||
                     'Unable to save AI provider.'
-                );
-            }
+            );
         } finally {
             setSaving(false);
         }
@@ -215,13 +228,17 @@ const Settings = () => {
         });
 
         setError('');
-        setMessage('');
-    };
+        setSuccess('');
 
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth',
+        });
+    };
 
     const handleDelete = async (id) => {
         const confirmed = window.confirm(
-            'Are you sure you want to delete this AI provider?'
+            'Are you sure you want to remove this AI provider?'
         );
 
         if (!confirmed) {
@@ -229,14 +246,12 @@ const Settings = () => {
         }
 
         setError('');
-        setMessage('');
+        setSuccess('');
 
         try {
             await deleteProvider(id);
 
-            setMessage(
-                'AI provider deleted successfully.'
-            );
+            setSuccess('AI provider removed successfully.');
 
             if (editingProvider?.id === id) {
                 resetForm();
@@ -246,195 +261,408 @@ const Settings = () => {
         } catch (error) {
             setError(
                 error.response?.data?.message ||
-                'Unable to delete AI provider.'
+                    'Unable to remove AI provider.'
             );
         }
     };
 
     const handleActivate = async (id) => {
+        setActivatingId(id);
         setError('');
-        setMessage('');
+        setSuccess('');
 
         try {
             await activateProvider(id);
 
-            setMessage(
-                'AI provider activated successfully.'
-            );
+            setSuccess('AI provider activated successfully.');
 
             await loadProviders();
         } catch (error) {
             setError(
                 error.response?.data?.message ||
-                'Unable to activate AI provider.'
+                    'Unable to activate AI provider.'
             );
+        } finally {
+            setActivatingId(null);
         }
     };
 
     const availableModels =
         PROVIDER_MODELS[form.provider] || [];
 
-    const selectedModel = availableModels.find(
-        (model) => model.id === form.model
-    );
-
     return (
-        <div>
-            <h1>AI Provider Settings</h1>
-
-            {error && (
-                <p>
-                    {error}
-                </p>
-            )}
-
-            {message && (
-                <p>
-                    {message}
-                </p>
-            )}
-
+        <div className="space-y-8">
+            {/* Header */}
             <section>
-                <h2>
-                    {editingProvider
-                        ? 'Edit Provider'
-                        : 'Add Provider'}
-                </h2>
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                    <span className="size-1.5 rounded-full bg-violet-500" />
+                    AI configuration
+                </div>
 
-                <form onSubmit={handleSubmit}>
-                    <div>
-                        <label>
-                            Provider
-                        </label>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                    AI Providers
+                </h1>
 
-                        <select
-                            name="provider"
-                            value={form.provider}
-                            onChange={handleChange}
-                            disabled={!!editingProvider || saving}
-                            required
-                        >
-                            <option value="openai">
-                                OpenAI
-                            </option>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+                    Connect your preferred AI provider and choose which
+                    model powers your note summaries.
+                </p>
+            </section>
 
-                            <option value="gemini">
-                                Gemini
-                            </option>
+            {/* Alerts */}
+            {error && (
+                <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                    <span className="font-bold">!</span>
 
-                            <option value="groq">
-                                Groq
-                            </option>
-                        </select>
-                    </div>
+                    <div className="flex-1">
+                        <p className="font-semibold">
+                            Something went wrong
+                        </p>
 
-                    <div>
-                        <label>
-                            Model
-                        </label>
-
-                        <select
-                            name="model"
-                            value={form.model}
-                            onChange={handleChange}
-                            disabled={saving}
-                            required
-                        >
-                            <option value="">
-                                Select a model
-                            </option>
-
-                            {availableModels.map((model) => (
-                                <option
-                                    key={model.id}
-                                    value={model.id}
-                                >
-                                    {model.name}
-                                </option>
-                            ))}
-                        </select>
-
-                        {selectedModel && (
-                            <p>
-                                {selectedModel.description}
-                            </p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label>
-                            API Key
-                        </label>
-
-                        <input
-                            type="password"
-                            name="api_key"
-                            value={form.api_key}
-                            onChange={handleChange}
-                            placeholder={
-                                editingProvider
-                                    ? 'Enter new API key'
-                                    : 'Enter API key'
-                            }
-                            disabled={saving}
-                            required
-                        />
+                        <p className="mt-1 text-red-600">
+                            {error}
+                        </p>
                     </div>
 
                     <button
-                        type="submit"
-                        disabled={
-                            saving ||
-                            !form.provider ||
-                            !form.model ||
-                            !form.api_key
-                        }
+                        type="button"
+                        onClick={() => setError('')}
+                        className="text-red-400 hover:text-red-700"
                     >
-                        {saving
-                            ? 'Verifying & Saving...'
-                            : editingProvider
-                                ? 'Update Provider'
-                                : 'Add Provider'}
+                        ×
                     </button>
+                </div>
+            )}
 
-                    {/* Cancel Edit */}
-                    {editingProvider && (
-                        <button
-                            type="button"
-                            onClick={resetForm}
-                            disabled={saving}
-                        >
-                            Cancel
-                        </button>
+            {success && (
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-700">
+                    <span className="font-bold">✓</span>
+
+                    <div className="flex-1">
+                        <p className="font-semibold">
+                            Success
+                        </p>
+
+                        <p className="mt-1 text-emerald-600">
+                            {success}
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setSuccess('')}
+                        className="text-emerald-400 hover:text-emerald-700"
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
+
+            {/* Provider form */}
+            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-6 py-6 sm:px-7">
+                    <div className="flex items-start gap-4">
+                        <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-slate-950 text-lg text-white">
+                            {editingProvider ? '✎' : '+'}
+                        </div>
+
+                        <div>
+                            <h2 className="text-lg font-bold tracking-tight text-slate-950">
+                                {editingProvider
+                                    ? 'Edit AI provider'
+                                    : 'Add AI provider'}
+                            </h2>
+
+                            <p className="mt-1 text-sm text-slate-500">
+                                {editingProvider
+                                    ? 'Update the provider or model. Leave the API key empty to keep the existing key.'
+                                    : 'Your API key is encrypted and stored securely on the server.'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <form
+                    onSubmit={handleSubmit}
+                    className="p-6 sm:p-7"
+                >
+                    <div className="grid gap-5 lg:grid-cols-3">
+                        {/* Provider */}
+                        <div>
+                            <label
+                                htmlFor="provider"
+                                className="mb-2 block text-sm font-semibold text-slate-800"
+                            >
+                                Provider
+                            </label>
+
+                            <select
+                                id="provider"
+                                value={form.provider}
+                                onChange={handleProviderChange}
+                                disabled={saving || Boolean(editingProvider)}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {PROVIDERS.map((provider) => (
+                                    <option
+                                        key={provider.id}
+                                        value={provider.id}
+                                    >
+                                        {provider.name}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <p className="mt-2 text-xs text-slate-400">
+                                {PROVIDERS.find(
+                                    (item) =>
+                                        item.id === form.provider
+                                )?.description}
+                            </p>
+                        </div>
+
+                        {/* Model */}
+                        <div>
+                            <label
+                                htmlFor="model"
+                                className="mb-2 block text-sm font-semibold text-slate-800"
+                            >
+                                Model
+                            </label>
+
+                            <select
+                                id="model"
+                                value={form.model}
+                                onChange={handleModelChange}
+                                disabled={saving}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {availableModels.map((model) => (
+                                    <option
+                                        key={model.id}
+                                        value={model.id}
+                                    >
+                                        {model.name}
+                                    </option>
+                                ))}
+                            </select>
+
+                            <p className="mt-2 text-xs leading-5 text-slate-400">
+                                {availableModels.find(
+                                    (model) =>
+                                        model.id === form.model
+                                )?.description}
+                            </p>
+                        </div>
+
+                        {/* API Key */}
+                        <div>
+                            <label
+                                htmlFor="api-key"
+                                className="mb-2 block text-sm font-semibold text-slate-800"
+                            >
+                                {editingProvider
+                                    ? 'New API key'
+                                    : 'API key'}
+                            </label>
+
+                            <input
+                                id="api-key"
+                                type="password"
+                                value={form.api_key}
+                                onChange={handleApiKeyChange}
+                                placeholder={
+                                    editingProvider
+                                        ? 'Leave empty to keep current key'
+                                        : 'Enter your API key'
+                                }
+                                autoComplete="new-password"
+                                disabled={saving}
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            />
+
+                            <p className="mt-2 text-xs text-slate-400">
+                                Never stored in browser localStorage.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Selected model information */}
+                    {availableModels.length > 0 && (
+                        <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                Selected model
+                            </p>
+
+                            <p className="mt-1.5 text-sm font-bold text-slate-800">
+                                {
+                                    availableModels.find(
+                                        (model) =>
+                                            model.id ===
+                                            form.model
+                                    )?.name
+                                }
+                            </p>
+
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                                {
+                                    availableModels.find(
+                                        (model) =>
+                                            model.id ===
+                                            form.model
+                                    )?.description
+                                }
+                            </p>
+                        </div>
                     )}
+
+                    {/* Form actions */}
+                    <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+                        {editingProvider && (
+                            <button
+                                type="button"
+                                onClick={resetForm}
+                                disabled={saving}
+                                className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {saving ? (
+                                <>
+                                    <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                                    {editingProvider
+                                        ? 'Updating...'
+                                        : 'Connecting...'}
+                                </>
+                            ) : (
+                                <>
+                                    <span>
+                                        {editingProvider ? '✓' : '+'}
+                                    </span>
+
+                                    {editingProvider
+                                        ? 'Update provider'
+                                        : 'Add provider'}
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </form>
             </section>
 
-            <hr />
+            {/* Security information */}
+            <section className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white shadow-sm sm:p-7">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+                    <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-lg">
+                        🔒
+                    </div>
 
+                    <div>
+                        <h2 className="font-bold">
+                            Your API keys stay private
+                        </h2>
+
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                            API keys are sent directly to the Laravel
+                            backend and stored using encrypted database
+                            storage. They are never returned by the API
+                            or saved in browser localStorage.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Configured providers */}
             <section>
-                <h2>
-                    Configured Providers
-                </h2>
+                <div className="mb-5 flex items-end justify-between gap-4">
+                    <div>
+                        <h2 className="text-xl font-bold tracking-tight text-slate-950">
+                            Configured providers
+                        </h2>
 
-                {loading ? (
-                    <p>
-                        Loading providers...
-                    </p>
-                ) : providers.length === 0 ? (
-                    <p>
-                        No AI providers configured yet.
-                    </p>
-                ) : (
-                    providers.map((provider) => (
-                        <ProviderCard
-                            key={provider.id}
-                            provider={provider}
-                            onEdit={handleEdit}
-                            onDelete={handleDelete}
-                            onActivate={handleActivate}
-                        />
-                    ))
+                        <p className="mt-1 text-sm text-slate-500">
+                            Choose which provider will power your AI
+                            features.
+                        </p>
+                    </div>
+
+                    {!loading && (
+                        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                            {providers.length}{' '}
+                            {providers.length === 1
+                                ? 'provider'
+                                : 'providers'}
+                        </span>
+                    )}
+                </div>
+
+                {/* Loading */}
+                {loading && (
+                    <div className="grid gap-5 xl:grid-cols-2">
+                        {[1, 2].map((item) => (
+                            <div
+                                key={item}
+                                className="h-72 animate-pulse rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+                            >
+                                <div className="flex gap-4">
+                                    <div className="size-12 rounded-2xl bg-slate-100" />
+
+                                    <div className="flex-1">
+                                        <div className="h-4 w-32 rounded bg-slate-100" />
+                                        <div className="mt-2 h-3 w-56 rounded bg-slate-100" />
+                                    </div>
+                                </div>
+
+                                <div className="mt-7 h-20 rounded-2xl bg-slate-100" />
+
+                                <div className="mt-4 h-12 rounded-2xl bg-slate-100" />
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Empty state */}
+                {!loading && providers.length === 0 && (
+                    <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center shadow-sm">
+                        <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-slate-100 text-2xl">
+                            ✨
+                        </div>
+
+                        <h3 className="mt-5 text-lg font-bold text-slate-950">
+                            No AI providers configured
+                        </h3>
+
+                        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
+                            Add an OpenAI, Google Gemini, or Groq API
+                            key above to enable AI-powered note
+                            summaries.
+                        </p>
+                    </div>
+                )}
+
+                {/* Provider cards */}
+                {!loading && providers.length > 0 && (
+                    <div className="grid gap-5 xl:grid-cols-2">
+                        {providers.map((provider) => (
+                            <ProviderCard
+                                key={provider.id}
+                                provider={provider}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                                onActivate={handleActivate}
+                                activating={
+                                    activatingId === provider.id
+                                }
+                            />
+                        ))}
+                    </div>
                 )}
             </section>
         </div>

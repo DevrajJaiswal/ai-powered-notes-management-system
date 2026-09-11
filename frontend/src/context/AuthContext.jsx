@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+
 import {
     getCurrentUser,
     login as loginRequest,
     logout as logoutRequest,
+    register as registerRequest,
 } from '../services/authService';
 
 const AuthContext = createContext(null);
@@ -10,6 +12,8 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const isAuthenticated = Boolean(user);
 
     useEffect(() => {
         const token = localStorage.getItem('auth_token');
@@ -19,16 +23,22 @@ export const AuthProvider = ({ children }) => {
             return;
         }
 
-        getCurrentUser()
-            .then((data) => {
+        const restoreSession = async () => {
+            try {
+                const data = await getCurrentUser();
+
                 setUser(data.user);
-            })
-            .catch(() => {
+            } catch (error) {
+                console.error('Unable to restore session:', error);
+
                 localStorage.removeItem('auth_token');
-            })
-            .finally(() => {
+                setUser(null);
+            } finally {
                 setLoading(false);
-            });
+            }
+        };
+
+        restoreSession();
     }, []);
 
     const login = async (credentials) => {
@@ -40,9 +50,20 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
+    const register = async (credentials) => {
+        const data = await registerRequest(credentials);
+
+        localStorage.setItem('auth_token', data.token);
+        setUser(data.user);
+
+        return data;
+    };
+
     const logout = async () => {
         try {
             await logoutRequest();
+        } catch (error) {
+            console.error('Logout request failed:', error);
         } finally {
             localStorage.removeItem('auth_token');
             setUser(null);
@@ -54,8 +75,9 @@ export const AuthProvider = ({ children }) => {
             value={{
                 user,
                 loading,
-                isAuthenticated: !!user,
+                isAuthenticated,
                 login,
+                register,
                 logout,
             }}
         >
@@ -64,4 +86,14 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+
+    if (!context) {
+        throw new Error(
+            'useAuth must be used inside an AuthProvider.'
+        );
+    }
+
+    return context;
+};
